@@ -1,2 +1,2 @@
-﻿# Sistema Integral De Inromacion Universitaria
+﻿# Sistema Integral De Informacion Universitaria
  
