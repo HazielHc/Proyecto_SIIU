@@ -68,7 +68,7 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
               return ListTile(
                 leading: CircleAvatar(child: Text(usuario.id.toString())),
                 title: Text(usuario.nombre),
-                subtitle: Text(usuario.email),
+                subtitle: Text(usuario.correo),
               );
             },
           );

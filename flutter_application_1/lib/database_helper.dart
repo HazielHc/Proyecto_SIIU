@@ -8,8 +8,8 @@ class DatabaseHelper {
       host: 'localhost', // Usa 'localhost' si ejecutas en Web o iOS. En emulador Android usa '10.0.2.2'
       port: 3306,
       user: 'root',     // Usuario por defecto en XAMPP
-      password: '',     // Contraseña por defecto está vacía en XAMPP
-      db: 'flutter_app_db', // El nombre de la BD que creamos
+      password: null,     // Contraseña por defecto está vacía en XAMPP
+      db: 'siiu', // El nombre de la BD que creamos
     );
 
     return await MySqlConnection.connect(settings);
@@ -22,14 +22,15 @@ class DatabaseHelper {
 
     try {
       // Ejecutar la consulta SQL
-      var results = await conn.query('SELECT id, nombre, email FROM usuarios');
+      var results = await conn.query('SELECT id, nombre, correo FROM usuario');
+
 
       // Recorrer los resultados y convertir cada fila a un objeto Usuario
       for (var row in results) {
         usuarios.add(Usuario(
           id: row[0] as int,
           nombre: row[1] as String,
-          email: row[2] as String,
+          correo: row[2] as String,
         ));
       }
     } catch (e) {
@@ -47,7 +48,7 @@ class DatabaseHelper {
 class Usuario {
   final int id;
   final String nombre;
-  final String email;
+  final String correo;
 
-  Usuario({required this.id, required this.nombre, required this.email});
+  Usuario({required this.id, required this.nombre, required this.correo});
 }
