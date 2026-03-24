@@ -2,32 +2,32 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 import 'login_screen.dart';
-
+ 
 class AdminScreen extends StatefulWidget {
   final Usuario usuario;
   const AdminScreen({super.key, required this.usuario});
-
+ 
   @override
   State<AdminScreen> createState() => _AdminScreenState();
 }
-
+ 
 class _AdminScreenState extends State<AdminScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final DatabaseHelper _db = DatabaseHelper();
-
+ 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
-
+ 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
-
+ 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,6 +63,7 @@ class _AdminScreenState extends State<AdminScreen>
             Tab(icon: Icon(Icons.person_add), text: 'Registrar'),
             Tab(icon: Icon(Icons.people), text: 'Usuarios'),
             Tab(icon: Icon(Icons.work), text: 'Profesiones'),
+            Tab(icon: Icon(Icons.menu_book), text: 'Materias'),
           ],
         ),
       ),
@@ -72,21 +73,22 @@ class _AdminScreenState extends State<AdminScreen>
           _TabRegistrar(db: _db),
           _TabUsuarios(db: _db),
           _TabProfesiones(db: _db),
+          _TabMaterias(db: _db),
         ],
       ),
     );
   }
 }
-
+ 
 // ── TAB 1: REGISTRAR USUARIO ──────────────────────────────────
 class _TabRegistrar extends StatefulWidget {
   final DatabaseHelper db;
   const _TabRegistrar({required this.db});
-
+ 
   @override
   State<_TabRegistrar> createState() => _TabRegistrarState();
 }
-
+ 
 class _TabRegistrarState extends State<_TabRegistrar> {
   final _formKey = GlobalKey<FormState>();
   final _nombreCtrl = TextEditingController();
@@ -97,21 +99,21 @@ class _TabRegistrarState extends State<_TabRegistrar> {
   String _rolSeleccionado = 'estudiante';
   bool _cargando = false;
   bool _verContrasena = false;
-
+ 
   List<Profesion> _profesiones = [];
   List<int> _profesionesSeleccionadas = [];
-
+ 
   @override
   void initState() {
     super.initState();
     _cargarProfesiones();
   }
-
+ 
   Future<void> _cargarProfesiones() async {
     final lista = await widget.db.getProfesiones();
     setState(() => _profesiones = lista);
   }
-
+ 
   Future<void> _registrar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_rolSeleccionado == 'docente' && _profesionesSeleccionadas.isEmpty) {
@@ -123,9 +125,9 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       );
       return;
     }
-
+ 
     setState(() => _cargando = true);
-
+ 
     final exito = await widget.db.registrarUsuario(
       nombre: _nombreCtrl.text.trim(),
       correo: _correoCtrl.text.trim(),
@@ -135,9 +137,9 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       carrera: _rolSeleccionado == 'estudiante' ? _carreraCtrl.text.trim() : null,
       idsProfesiones: _rolSeleccionado == 'docente' ? _profesionesSeleccionadas : null,
     );
-
+ 
     setState(() => _cargando = false);
-
+ 
     if (exito) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -155,7 +157,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       );
     }
   }
-
+ 
   void _limpiarFormulario() {
     _nombreCtrl.clear();
     _correoCtrl.clear();
@@ -167,7 +169,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       _profesionesSeleccionadas = [];
     });
   }
-
+ 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -179,12 +181,12 @@ class _TabRegistrarState extends State<_TabRegistrar> {
           children: [
             _seccionTitulo('Datos del usuario'),
             const SizedBox(height: 16),
-
+ 
             // Nombre
             _campo(_nombreCtrl, 'Nombre completo', Icons.person_outline,
                 validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
             const SizedBox(height: 12),
-
+ 
             // Correo
             _campo(_correoCtrl, 'Correo electrónico', Icons.email_outlined,
                 tipo: TextInputType.emailAddress,
@@ -194,7 +196,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
                   return null;
                 }),
             const SizedBox(height: 12),
-
+ 
             // Contraseña
             TextFormField(
               controller: _contrasenaCtrl,
@@ -217,18 +219,18 @@ class _TabRegistrarState extends State<_TabRegistrar> {
               },
             ),
             const SizedBox(height: 12),
-
+ 
             // Matrícula
             _campo(_matriculaCtrl, 'Matrícula', Icons.badge_outlined,
                 validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
             const SizedBox(height: 16),
-
+ 
             // Rol
             _seccionTitulo('Rol del usuario'),
             const SizedBox(height: 12),
             _selectorRol(),
             const SizedBox(height: 16),
-
+ 
             // Campos según rol
             if (_rolSeleccionado == 'estudiante') ...[
               _seccionTitulo('Datos del estudiante'),
@@ -237,14 +239,14 @@ class _TabRegistrarState extends State<_TabRegistrar> {
                   validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
               const SizedBox(height: 16),
             ],
-
+ 
             if (_rolSeleccionado == 'docente') ...[
               _seccionTitulo('Profesiones del docente'),
               const SizedBox(height: 8),
               _checkboxProfesiones(),
               const SizedBox(height: 16),
             ],
-
+ 
             // Botón registrar
             SizedBox(
               height: 50,
@@ -272,7 +274,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       ),
     );
   }
-
+ 
   Widget _seccionTitulo(String titulo) {
     return Text(
       titulo,
@@ -284,7 +286,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       ),
     );
   }
-
+ 
   Widget _campo(
     TextEditingController ctrl,
     String label,
@@ -305,7 +307,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       validator: validator,
     );
   }
-
+ 
   Widget _selectorRol() {
     return Container(
       decoration: BoxDecoration(
@@ -357,7 +359,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       ),
     );
   }
-
+ 
   Widget _checkboxProfesiones() {
     if (_profesiones.isEmpty) {
       return Container(
@@ -381,7 +383,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
         ),
       );
     }
-
+ 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -410,25 +412,25 @@ class _TabRegistrarState extends State<_TabRegistrar> {
     );
   }
 }
-
+ 
 // ── TAB 2: VER USUARIOS ───────────────────────────────────────
 class _TabUsuarios extends StatefulWidget {
   final DatabaseHelper db;
   const _TabUsuarios({required this.db});
-
+ 
   @override
   State<_TabUsuarios> createState() => _TabUsuariosState();
 }
-
+ 
 class _TabUsuariosState extends State<_TabUsuarios> {
   late Future<List<Usuario>> _futureUsuarios;
-
+ 
   @override
   void initState() {
     super.initState();
     _futureUsuarios = widget.db.getUsuarios();
   }
-
+ 
   Color _colorRol(String rol) {
     switch (rol) {
       case 'administrador':
@@ -441,7 +443,7 @@ class _TabUsuariosState extends State<_TabUsuarios> {
         return Colors.grey;
     }
   }
-
+ 
   IconData _iconoRol(String rol) {
     switch (rol) {
       case 'administrador':
@@ -454,7 +456,7 @@ class _TabUsuariosState extends State<_TabUsuarios> {
         return Icons.person_outline;
     }
   }
-
+ 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Usuario>>(
@@ -520,36 +522,36 @@ class _TabUsuariosState extends State<_TabUsuarios> {
     );
   }
 }
-
+ 
 // ── TAB 3: PROFESIONES ────────────────────────────────────────
 class _TabProfesiones extends StatefulWidget {
   final DatabaseHelper db;
   const _TabProfesiones({required this.db});
-
+ 
   @override
   State<_TabProfesiones> createState() => _TabProfesionesState();
 }
-
+ 
 class _TabProfesionesState extends State<_TabProfesiones> {
   final _ctrl = TextEditingController();
   late Future<List<Profesion>> _futureProfesiones;
-
+ 
   @override
   void initState() {
     super.initState();
     _recargar();
   }
-
+ 
   void _recargar() {
     setState(() {
       _futureProfesiones = widget.db.getProfesiones();
     });
   }
-
+ 
   Future<void> _agregar() async {
     final nombre = _ctrl.text.trim();
     if (nombre.isEmpty) return;
-
+ 
     final exito = await widget.db.agregarProfesion(nombre);
     if (exito) {
       _ctrl.clear();
@@ -562,7 +564,7 @@ class _TabProfesionesState extends State<_TabProfesiones> {
       );
     }
   }
-
+ 
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -600,7 +602,7 @@ class _TabProfesionesState extends State<_TabProfesiones> {
             ],
           ),
           const SizedBox(height: 16),
-
+ 
           // Lista de profesiones
           Expanded(
             child: FutureBuilder<List<Profesion>>(
@@ -641,6 +643,326 @@ class _TabProfesionesState extends State<_TabProfesiones> {
           ),
         ],
       ),
+    );
+  }
+}
+ 
+// ── TAB 4: MATERIAS ───────────────────────────────────────────
+class _TabMaterias extends StatefulWidget {
+  final DatabaseHelper db;
+  const _TabMaterias({required this.db});
+ 
+  @override
+  State<_TabMaterias> createState() => _TabMateriasState();
+}
+ 
+class _TabMateriasState extends State<_TabMaterias> {
+  late Future<List<MateriaItem>> _futureMaterias;
+ 
+  @override
+  void initState() {
+    super.initState();
+    _recargar();
+  }
+ 
+  void _recargar() {
+    setState(() {
+      _futureMaterias = widget.db.getMaterias();
+    });
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F4FF),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final creada = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => _FormMateria(db: widget.db)),
+          );
+          if (creada == true) _recargar();
+        },
+        backgroundColor: const Color(0xFF1A237E),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text('Nueva Materia', style: TextStyle(color: Colors.white)),
+      ),
+      body: FutureBuilder<List<MateriaItem>>(
+        future: _futureMaterias,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final materias = snapshot.data ?? [];
+          if (materias.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.menu_book_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text('No hay materias registradas',
+                      style: TextStyle(color: Colors.grey)),
+                  SizedBox(height: 4),
+                  Text('Presiona + para crear una',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+            itemCount: materias.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final m = materias[index];
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFE8EAF6),
+                    child: Icon(Icons.menu_book, color: Color(0xFF1A237E)),
+                  ),
+                  title: Text(m.nombre,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text('Clave: ${m.clave}  •  Docente: ${m.nombreDocente}'),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+ 
+// ── FORMULARIO NUEVA MATERIA ──────────────────────────────────
+class _FormMateria extends StatefulWidget {
+  final DatabaseHelper db;
+  const _FormMateria({required this.db});
+ 
+  @override
+  State<_FormMateria> createState() => _FormMateriaState();
+}
+ 
+class _FormMateriaState extends State<_FormMateria> {
+  final _formKey = GlobalKey<FormState>();
+  final _nombreCtrl = TextEditingController();
+  final _claveCtrl = TextEditingController();
+ 
+  List<DocenteItem> _docentes = [];
+  List<EstudianteItem> _estudiantes = [];
+  DocenteItem? _docenteSeleccionado;
+  List<int> _estudiantesSeleccionados = [];
+  bool _cargando = false;
+  bool _cargandoDatos = true;
+ 
+  @override
+  void initState() {
+    super.initState();
+    _cargarDatos();
+  }
+ 
+  Future<void> _cargarDatos() async {
+    final docentes = await widget.db.getDocentes();
+    final estudiantes = await widget.db.getEstudiantes();
+    setState(() {
+      _docentes = docentes;
+      _estudiantes = estudiantes;
+      _cargandoDatos = false;
+    });
+  }
+ 
+  Future<void> _guardar() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (_docenteSeleccionado == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona un docente'),
+            backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    if (_estudiantesSeleccionados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona al menos un estudiante'),
+            backgroundColor: Colors.orange),
+      );
+      return;
+    }
+    setState(() => _cargando = true);
+    final exito = await widget.db.crearMateria(
+      nombre: _nombreCtrl.text.trim(),
+      clave: _claveCtrl.text.trim(),
+      idDocente: _docenteSeleccionado!.id,
+      idsEstudiantes: _estudiantesSeleccionados,
+    );
+    setState(() => _cargando = false);
+    if (exito) {
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error. ¿La clave ya existe?'),
+            backgroundColor: Colors.redAccent),
+      );
+    }
+  }
+ 
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF0F4FF),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1A237E),
+        foregroundColor: Colors.white,
+        title: const Text('Nueva Materia'),
+      ),
+      body: _cargandoDatos
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _seccion('Datos de la materia'),
+                    const SizedBox(height: 12),
+                    _campo(_nombreCtrl, 'Nombre de la materia',
+                        Icons.menu_book_outlined,
+                        validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
+                    const SizedBox(height: 12),
+                    _campo(_claveCtrl, 'Clave (única)', Icons.tag,
+                        validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
+                    const SizedBox(height: 20),
+ 
+                    _seccion('Docente asignado'),
+                    const SizedBox(height: 12),
+                    _docentes.isEmpty
+                        ? _aviso('No hay docentes. Regístralos primero.')
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<DocenteItem>(
+                                isExpanded: true,
+                                hint: const Text('Selecciona un docente'),
+                                value: _docenteSeleccionado,
+                                items: _docentes.map((d) => DropdownMenuItem(
+                                  value: d,
+                                  child: Text('${d.nombre} (${d.matricula})'),
+                                )).toList(),
+                                onChanged: (val) =>
+                                    setState(() => _docenteSeleccionado = val),
+                              ),
+                            ),
+                          ),
+                    const SizedBox(height: 20),
+ 
+                    _seccion('Estudiantes inscritos'),
+                    const SizedBox(height: 8),
+                    _estudiantes.isEmpty
+                        ? _aviso('No hay estudiantes. Regístralos primero.')
+                        : Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              children: _estudiantes.map((est) {
+                                final sel = _estudiantesSeleccionados.contains(est.id);
+                                return CheckboxListTile(
+                                  title: Text(est.nombre),
+                                  subtitle: Text(
+                                      '${est.matricula} • ${est.carrera}'),
+                                  value: sel,
+                                  activeColor: const Color(0xFF1A237E),
+                                  onChanged: (val) {
+                                    setState(() {
+                                      if (val == true) {
+                                        _estudiantesSeleccionados.add(est.id);
+                                      } else {
+                                        _estudiantesSeleccionados.remove(est.id);
+                                      }
+                                    });
+                                  },
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                    const SizedBox(height: 24),
+ 
+                    SizedBox(
+                      height: 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _cargando ? null : _guardar,
+                        icon: _cargando
+                            ? const SizedBox(
+                                width: 18, height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.save),
+                        label: Text(_cargando ? 'Guardando...' : 'Crear Materia'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1A237E),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+ 
+  Widget _seccion(String titulo) => Text(titulo,
+      style: const TextStyle(
+          fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A237E)));
+ 
+  Widget _aviso(String msg) => Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.orange.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.orange.shade200),
+        ),
+        child: Row(children: [
+          const Icon(Icons.warning_amber, color: Colors.orange),
+          const SizedBox(width: 8),
+          Expanded(
+              child: Text(msg, style: const TextStyle(color: Colors.orange))),
+        ]),
+      );
+ 
+  Widget _campo(TextEditingController ctrl, String label, IconData icono,
+      {String? Function(String?)? validator}) {
+    return TextFormField(
+      controller: ctrl,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icono),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.white,
+      ),
+      validator: validator,
     );
   }
 }
