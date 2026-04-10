@@ -235,6 +235,79 @@ class DatabaseHelper {
     return lista;
   }
 
+  // Obtiene el id de la tabla 'estudiante' a partir del id_usuario
+  Future<int?> getIdEstudiante(int idUsuario) async {
+    final conn = await getConnection();
+    try {
+      var results = await conn.query(
+        'SELECT id FROM estudiante WHERE id_usuario = ?',
+        [idUsuario],
+      );
+      if (results.isEmpty) return null;
+      return results.first[0] as int;
+    } catch (e) {
+      print('Error al obtener id_estudiante: $e');
+      return null;
+    } finally {
+      await conn.close();
+    }
+  }
+
+  // Obtiene matrícula y carrera del estudiante a partir del id_usuario
+  Future<Map<String, String>?> getDatosEstudiante(int idUsuario) async {
+    final conn = await getConnection();
+    try {
+      var results = await conn.query(
+        'SELECT e.id, e.matricula, e.carrera FROM estudiante e WHERE e.id_usuario = ?',
+        [idUsuario],
+      );
+      if (results.isEmpty) return null;
+      final row = results.first;
+      return {
+        'id':        (row[0] as int).toString(),
+        'matricula': row[1] as String,
+        'carrera':   row[2] as String,
+      };
+    } catch (e) {
+      print('Error al obtener datos del estudiante: $e');
+      return null;
+    } finally {
+      await conn.close();
+    }
+  }
+
+  // Obtiene las materias en las que está inscrito un estudiante
+  Future<List<MateriaItem>> getMateriasPorEstudiante(int idEstudiante) async {
+    final conn = await getConnection();
+    List<MateriaItem> lista = [];
+    try {
+      var results = await conn.query(
+        'SELECT m.id, m.nombre, m.clave, m.id_docente, u.nombre '
+        'FROM materia_estudiante me '
+        'JOIN materia m ON me.id_materia = m.id '
+        'JOIN docente d ON m.id_docente = d.id '
+        'JOIN usuario u ON d.id_usuario = u.id '
+        'WHERE me.id_estudiante = ? '
+        'ORDER BY m.nombre',
+        [idEstudiante],
+      );
+      for (var row in results) {
+        lista.add(MateriaItem(
+          id: row[0] as int,
+          nombre: row[1] as String,
+          clave: row[2] as String,
+          idDocente: row[3] as int,
+          nombreDocente: row[4] as String,
+        ));
+      }
+    } catch (e) {
+      print('Error al obtener materias del estudiante: $e');
+    } finally {
+      await conn.close();
+    }
+    return lista;
+  }
+
   // ── MATERIAS ──────────────────────────────────────────────
   Future<List<MateriaItem>> getMaterias() async {
     final conn = await getConnection();
@@ -352,8 +425,6 @@ class DatabaseHelper {
   }
 
   // ── CALIFICACIONES ────────────────────────────────────────
-
-  // Obtiene la calificación de un estudiante en una materia y unidad específica
   Future<double?> getCalificacion(
       int idEstudiante, int idMateria, int unidad) async {
     final conn = await getConnection();
@@ -375,7 +446,6 @@ class DatabaseHelper {
     }
   }
 
-  // Inserta o actualiza una calificación (upsert)
   Future<bool> guardarCalificacion({
     required int idEstudiante,
     required int idMateria,
@@ -385,13 +455,11 @@ class DatabaseHelper {
     if (calificacion < 0.0 || calificacion > 10.0) return false;
     final conn = await getConnection();
     try {
-      // Intentar actualizar primero
       var result = await conn.query(
         'UPDATE calificacion SET calificacion = ? '
         'WHERE id_estudiante = ? AND id_materia = ? AND unidad = ?',
         [calificacion, idEstudiante, idMateria, unidad],
       );
-      // Si no actualizó ninguna fila, insertar
       if (result.affectedRows == 0) {
         await conn.query(
           'INSERT INTO calificacion (calificacion, unidad, id_estudiante, id_materia) '
@@ -408,7 +476,6 @@ class DatabaseHelper {
     }
   }
 
-  // Calcula el promedio final de un estudiante en una materia (3 unidades)
   Future<double?> getPromedio(int idEstudiante, int idMateria) async {
     final conn = await getConnection();
     try {
@@ -418,7 +485,7 @@ class DatabaseHelper {
         'ORDER BY unidad',
         [idEstudiante, idMateria],
       );
-      if (results.length < 3) return null; // faltan unidades
+      if (results.length < 3) return null;
       double suma = 0;
       for (var row in results) {
         suma += double.parse(row[0].toString());
