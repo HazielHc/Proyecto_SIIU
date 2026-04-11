@@ -2,32 +2,32 @@
 import 'package:flutter/material.dart';
 import 'database_helper.dart';
 import 'login_screen.dart';
- 
+
 class AdminScreen extends StatefulWidget {
   final Usuario usuario;
   const AdminScreen({super.key, required this.usuario});
- 
+
   @override
   State<AdminScreen> createState() => _AdminScreenState();
 }
- 
+
 class _AdminScreenState extends State<AdminScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final DatabaseHelper _db = DatabaseHelper();
- 
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
- 
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -59,11 +59,13 @@ class _AdminScreenState extends State<AdminScreen>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white54,
+          isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.person_add), text: 'Registrar'),
             Tab(icon: Icon(Icons.people), text: 'Usuarios'),
             Tab(icon: Icon(Icons.work), text: 'Profesiones'),
             Tab(icon: Icon(Icons.menu_book), text: 'Materias'),
+            Tab(icon: Icon(Icons.school_outlined), text: 'Carreras'),
           ],
         ),
       ),
@@ -74,48 +76,57 @@ class _AdminScreenState extends State<AdminScreen>
           _TabUsuarios(db: _db),
           _TabProfesiones(db: _db),
           _TabMaterias(db: _db),
+          _TabCarreras(db: _db),
         ],
       ),
     );
   }
 }
- 
+
 // ── TAB 1: REGISTRAR USUARIO ──────────────────────────────────
 class _TabRegistrar extends StatefulWidget {
   final DatabaseHelper db;
   const _TabRegistrar({required this.db});
- 
+
   @override
   State<_TabRegistrar> createState() => _TabRegistrarState();
 }
- 
+
 class _TabRegistrarState extends State<_TabRegistrar> {
   final _formKey = GlobalKey<FormState>();
   final _nombreCtrl = TextEditingController();
   final _correoCtrl = TextEditingController();
   final _contrasenaCtrl = TextEditingController();
   final _matriculaCtrl = TextEditingController();
-  final _carreraCtrl = TextEditingController();
   String _rolSeleccionado = 'estudiante';
   bool _cargando = false;
   bool _verContrasena = false;
- 
+
   List<Profesion> _profesiones = [];
   List<int> _profesionesSeleccionadas = [];
- 
+  List<Carrera> _carreras = [];
+  Carrera? _carreraSeleccionada;
+
   @override
   void initState() {
     super.initState();
     _cargarProfesiones();
+    _cargarCarreras();
   }
- 
+
   Future<void> _cargarProfesiones() async {
     final lista = await widget.db.getProfesiones();
     setState(() => _profesiones = lista);
   }
- 
+
+  Future<void> _cargarCarreras() async {
+    final lista = await widget.db.getCarreras();
+    setState(() => _carreras = lista);
+  }
+
   Future<void> _registrar() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (_rolSeleccionado == 'docente' && _profesionesSeleccionadas.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -125,21 +136,34 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       );
       return;
     }
- 
+
+    if (_rolSeleccionado == 'estudiante' && _carreraSeleccionada == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona una carrera'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     setState(() => _cargando = true);
- 
+
     final exito = await widget.db.registrarUsuario(
       nombre: _nombreCtrl.text.trim(),
       correo: _correoCtrl.text.trim(),
       contrasena: _contrasenaCtrl.text.trim(),
       rol: _rolSeleccionado,
       matricula: _matriculaCtrl.text.trim(),
-      carrera: _rolSeleccionado == 'estudiante' ? _carreraCtrl.text.trim() : null,
-      idsProfesiones: _rolSeleccionado == 'docente' ? _profesionesSeleccionadas : null,
+      carrera: _rolSeleccionado == 'estudiante'
+          ? _carreraSeleccionada?.nombre
+          : null,
+      idsProfesiones:
+          _rolSeleccionado == 'docente' ? _profesionesSeleccionadas : null,
     );
- 
+
     setState(() => _cargando = false);
- 
+
     if (exito) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -157,19 +181,19 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       );
     }
   }
- 
+
   void _limpiarFormulario() {
     _nombreCtrl.clear();
     _correoCtrl.clear();
     _contrasenaCtrl.clear();
     _matriculaCtrl.clear();
-    _carreraCtrl.clear();
     setState(() {
       _rolSeleccionado = 'estudiante';
       _profesionesSeleccionadas = [];
+      _carreraSeleccionada = null;
     });
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -181,13 +205,11 @@ class _TabRegistrarState extends State<_TabRegistrar> {
           children: [
             _seccionTitulo('Datos del usuario'),
             const SizedBox(height: 16),
- 
-            // Nombre
+
             _campo(_nombreCtrl, 'Nombre completo', Icons.person_outline,
                 validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
             const SizedBox(height: 12),
- 
-            // Correo
+
             _campo(_correoCtrl, 'Correo electrónico', Icons.email_outlined,
                 tipo: TextInputType.emailAddress,
                 validator: (v) {
@@ -196,8 +218,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
                   return null;
                 }),
             const SizedBox(height: 12),
- 
-            // Contraseña
+
             TextFormField(
               controller: _contrasenaCtrl,
               obscureText: !_verContrasena,
@@ -205,10 +226,13 @@ class _TabRegistrarState extends State<_TabRegistrar> {
                 labelText: 'Contraseña',
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
-                  icon: Icon(_verContrasena ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _verContrasena = !_verContrasena),
+                  icon: Icon(
+                      _verContrasena ? Icons.visibility_off : Icons.visibility),
+                  onPressed: () =>
+                      setState(() => _verContrasena = !_verContrasena),
                 ),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 filled: true,
                 fillColor: Colors.white,
               ),
@@ -219,35 +243,71 @@ class _TabRegistrarState extends State<_TabRegistrar> {
               },
             ),
             const SizedBox(height: 12),
- 
-            // Matrícula
+
             _campo(_matriculaCtrl, 'Matrícula', Icons.badge_outlined,
                 validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
             const SizedBox(height: 16),
- 
-            // Rol
+
             _seccionTitulo('Rol del usuario'),
             const SizedBox(height: 12),
             _selectorRol(),
             const SizedBox(height: 16),
- 
-            // Campos según rol
+
             if (_rolSeleccionado == 'estudiante') ...[
               _seccionTitulo('Datos del estudiante'),
               const SizedBox(height: 12),
-              _campo(_carreraCtrl, 'Carrera', Icons.school_outlined,
-                  validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
+              _carreras.isEmpty
+                  ? Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: const Row(children: [
+                        Icon(Icons.warning_amber, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'No hay carreras registradas. Ve a la pestaña "Carreras" para agregar.',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        ),
+                      ]),
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<Carrera>(
+                          isExpanded: true,
+                          hint: const Text('Selecciona una carrera'),
+                          value: _carreraSeleccionada,
+                          items: _carreras
+                              .map((c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(c.nombre),
+                                  ))
+                              .toList(),
+                          onChanged: (val) =>
+                              setState(() => _carreraSeleccionada = val),
+                        ),
+                      ),
+                    ),
               const SizedBox(height: 16),
             ],
- 
+
             if (_rolSeleccionado == 'docente') ...[
               _seccionTitulo('Profesiones del docente'),
               const SizedBox(height: 8),
               _checkboxProfesiones(),
               const SizedBox(height: 16),
             ],
- 
-            // Botón registrar
+
             SizedBox(
               height: 50,
               child: ElevatedButton.icon(
@@ -274,7 +334,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       ),
     );
   }
- 
+
   Widget _seccionTitulo(String titulo) {
     return Text(
       titulo,
@@ -286,7 +346,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       ),
     );
   }
- 
+
   Widget _campo(
     TextEditingController ctrl,
     String label,
@@ -307,7 +367,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       validator: validator,
     );
   }
- 
+
   Widget _selectorRol() {
     return Container(
       decoration: BoxDecoration(
@@ -323,6 +383,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
               onTap: () => setState(() {
                 _rolSeleccionado = rol;
                 _profesionesSeleccionadas = [];
+                _carreraSeleccionada = null;
               }),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -336,9 +397,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      rol == 'estudiante'
-                          ? Icons.person
-                          : Icons.school,
+                      rol == 'estudiante' ? Icons.person : Icons.school,
                       color: seleccionado ? Colors.white : Colors.grey,
                       size: 18,
                     ),
@@ -359,7 +418,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
       ),
     );
   }
- 
+
   Widget _checkboxProfesiones() {
     if (_profesiones.isEmpty) {
       return Container(
@@ -383,7 +442,7 @@ class _TabRegistrarState extends State<_TabRegistrar> {
         ),
       );
     }
- 
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -412,25 +471,25 @@ class _TabRegistrarState extends State<_TabRegistrar> {
     );
   }
 }
- 
+
 // ── TAB 2: VER USUARIOS ───────────────────────────────────────
 class _TabUsuarios extends StatefulWidget {
   final DatabaseHelper db;
   const _TabUsuarios({required this.db});
- 
+
   @override
   State<_TabUsuarios> createState() => _TabUsuariosState();
 }
- 
+
 class _TabUsuariosState extends State<_TabUsuarios> {
   late Future<List<Usuario>> _futureUsuarios;
- 
+
   @override
   void initState() {
     super.initState();
     _futureUsuarios = widget.db.getUsuarios();
   }
- 
+
   Color _colorRol(String rol) {
     switch (rol) {
       case 'administrador':
@@ -443,7 +502,7 @@ class _TabUsuariosState extends State<_TabUsuarios> {
         return Colors.grey;
     }
   }
- 
+
   IconData _iconoRol(String rol) {
     switch (rol) {
       case 'administrador':
@@ -456,7 +515,7 @@ class _TabUsuariosState extends State<_TabUsuarios> {
         return Icons.person_outline;
     }
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<List<Usuario>>(
@@ -522,36 +581,35 @@ class _TabUsuariosState extends State<_TabUsuarios> {
     );
   }
 }
- 
+
 // ── TAB 3: PROFESIONES ────────────────────────────────────────
 class _TabProfesiones extends StatefulWidget {
   final DatabaseHelper db;
   const _TabProfesiones({required this.db});
- 
+
   @override
   State<_TabProfesiones> createState() => _TabProfesionesState();
 }
- 
+
 class _TabProfesionesState extends State<_TabProfesiones> {
   final _ctrl = TextEditingController();
   late Future<List<Profesion>> _futureProfesiones;
- 
+
   @override
   void initState() {
     super.initState();
     _recargar();
   }
- 
+
   void _recargar() {
     setState(() {
       _futureProfesiones = widget.db.getProfesiones();
     });
   }
- 
+
   Future<void> _agregar() async {
     final nombre = _ctrl.text.trim();
     if (nombre.isEmpty) return;
- 
     final exito = await widget.db.agregarProfesion(nombre);
     if (exito) {
       _ctrl.clear();
@@ -564,14 +622,13 @@ class _TabProfesionesState extends State<_TabProfesiones> {
       );
     }
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Campo para agregar
           Row(
             children: [
               Expanded(
@@ -602,8 +659,6 @@ class _TabProfesionesState extends State<_TabProfesiones> {
             ],
           ),
           const SizedBox(height: 16),
- 
-          // Lista de profesiones
           Expanded(
             child: FutureBuilder<List<Profesion>>(
               future: _futureProfesiones,
@@ -646,31 +701,31 @@ class _TabProfesionesState extends State<_TabProfesiones> {
     );
   }
 }
- 
+
 // ── TAB 4: MATERIAS ───────────────────────────────────────────
 class _TabMaterias extends StatefulWidget {
   final DatabaseHelper db;
   const _TabMaterias({required this.db});
- 
+
   @override
   State<_TabMaterias> createState() => _TabMateriasState();
 }
- 
+
 class _TabMateriasState extends State<_TabMaterias> {
   late Future<List<MateriaItem>> _futureMaterias;
- 
+
   @override
   void initState() {
     super.initState();
     _recargar();
   }
- 
+
   void _recargar() {
     setState(() {
       _futureMaterias = widget.db.getMaterias();
     });
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -685,7 +740,8 @@ class _TabMateriasState extends State<_TabMaterias> {
         },
         backgroundColor: const Color(0xFF1A237E),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Nueva Materia', style: TextStyle(color: Colors.white)),
+        label:
+            const Text('Nueva Materia', style: TextStyle(color: Colors.white)),
       ),
       body: FutureBuilder<List<MateriaItem>>(
         future: _futureMaterias,
@@ -735,7 +791,8 @@ class _TabMateriasState extends State<_TabMaterias> {
                   ),
                   title: Text(m.nombre,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('Clave: ${m.clave}  •  Docente: ${m.nombreDocente}'),
+                  subtitle:
+                      Text('Clave: ${m.clave}  •  Docente: ${m.nombreDocente}'),
                 ),
               );
             },
@@ -745,34 +802,155 @@ class _TabMateriasState extends State<_TabMaterias> {
     );
   }
 }
- 
+
+// ── TAB 5: CARRERAS ───────────────────────────────────────────
+class _TabCarreras extends StatefulWidget {
+  final DatabaseHelper db;
+  const _TabCarreras({required this.db});
+
+  @override
+  State<_TabCarreras> createState() => _TabCarrerasState();
+}
+
+class _TabCarrerasState extends State<_TabCarreras> {
+  final _ctrl = TextEditingController();
+  late Future<List<Carrera>> _futureCarreras;
+
+  @override
+  void initState() {
+    super.initState();
+    _recargar();
+  }
+
+  void _recargar() {
+    setState(() {
+      _futureCarreras = widget.db.getCarreras();
+    });
+  }
+
+  Future<void> _agregar() async {
+    final nombre = _ctrl.text.trim();
+    if (nombre.isEmpty) return;
+    final exito = await widget.db.agregarCarrera(nombre);
+    if (exito) {
+      _ctrl.clear();
+      _recargar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Carrera agregada'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _ctrl,
+                  decoration: InputDecoration(
+                    labelText: 'Nueva carrera',
+                    prefixIcon: const Icon(Icons.school_outlined),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: _agregar,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A237E),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.all(16),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Icon(Icons.add),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: FutureBuilder<List<Carrera>>(
+              future: _futureCarreras,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final lista = snapshot.data ?? [];
+                if (lista.isEmpty) {
+                  return const Center(
+                    child: Text('No hay carreras registradas'),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: lista.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final c = lista[index];
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: const CircleAvatar(
+                          backgroundColor: Color(0xFFE8EAF6),
+                          child:
+                              Icon(Icons.school, color: Color(0xFF1A237E)),
+                        ),
+                        title: Text(c.nombre),
+                        subtitle: Text('ID: ${c.id}'),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── FORMULARIO NUEVA MATERIA ──────────────────────────────────
 class _FormMateria extends StatefulWidget {
   final DatabaseHelper db;
   const _FormMateria({required this.db});
- 
+
   @override
   State<_FormMateria> createState() => _FormMateriaState();
 }
- 
+
 class _FormMateriaState extends State<_FormMateria> {
   final _formKey = GlobalKey<FormState>();
   final _nombreCtrl = TextEditingController();
   final _claveCtrl = TextEditingController();
- 
+
   List<DocenteItem> _docentes = [];
   List<EstudianteItem> _estudiantes = [];
   DocenteItem? _docenteSeleccionado;
   List<int> _estudiantesSeleccionados = [];
   bool _cargando = false;
   bool _cargandoDatos = true;
- 
+
   @override
   void initState() {
     super.initState();
     _cargarDatos();
   }
- 
+
   Future<void> _cargarDatos() async {
     final docentes = await widget.db.getDocentes();
     final estudiantes = await widget.db.getEstudiantes();
@@ -782,19 +960,21 @@ class _FormMateriaState extends State<_FormMateria> {
       _cargandoDatos = false;
     });
   }
- 
+
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
     if (_docenteSeleccionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona un docente'),
+        const SnackBar(
+            content: Text('Selecciona un docente'),
             backgroundColor: Colors.orange),
       );
       return;
     }
     if (_estudiantesSeleccionados.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona al menos un estudiante'),
+        const SnackBar(
+            content: Text('Selecciona al menos un estudiante'),
             backgroundColor: Colors.orange),
       );
       return;
@@ -811,12 +991,13 @@ class _FormMateriaState extends State<_FormMateria> {
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error. ¿La clave ya existe?'),
+        const SnackBar(
+            content: Text('Error. ¿La clave ya existe?'),
             backgroundColor: Colors.redAccent),
       );
     }
   }
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -839,12 +1020,14 @@ class _FormMateriaState extends State<_FormMateria> {
                     const SizedBox(height: 12),
                     _campo(_nombreCtrl, 'Nombre de la materia',
                         Icons.menu_book_outlined,
-                        validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
+                        validator: (v) =>
+                            v!.isEmpty ? 'Campo requerido' : null),
                     const SizedBox(height: 12),
                     _campo(_claveCtrl, 'Clave (única)', Icons.tag,
-                        validator: (v) => v!.isEmpty ? 'Campo requerido' : null),
+                        validator: (v) =>
+                            v!.isEmpty ? 'Campo requerido' : null),
                     const SizedBox(height: 20),
- 
+
                     _seccion('Docente asignado'),
                     const SizedBox(height: 12),
                     _docentes.isEmpty
@@ -855,23 +1038,27 @@ class _FormMateriaState extends State<_FormMateria> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.grey.shade300),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 12),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<DocenteItem>(
                                 isExpanded: true,
                                 hint: const Text('Selecciona un docente'),
                                 value: _docenteSeleccionado,
-                                items: _docentes.map((d) => DropdownMenuItem(
-                                  value: d,
-                                  child: Text('${d.nombre} (${d.matricula})'),
-                                )).toList(),
-                                onChanged: (val) =>
-                                    setState(() => _docenteSeleccionado = val),
+                                items: _docentes
+                                    .map((d) => DropdownMenuItem(
+                                          value: d,
+                                          child: Text(
+                                              '${d.nombre} (${d.matricula})'),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) => setState(
+                                    () => _docenteSeleccionado = val),
                               ),
                             ),
                           ),
                     const SizedBox(height: 20),
- 
+
                     _seccion('Estudiantes inscritos'),
                     const SizedBox(height: 8),
                     _estudiantes.isEmpty
@@ -884,7 +1071,8 @@ class _FormMateriaState extends State<_FormMateria> {
                             ),
                             child: Column(
                               children: _estudiantes.map((est) {
-                                final sel = _estudiantesSeleccionados.contains(est.id);
+                                final sel =
+                                    _estudiantesSeleccionados.contains(est.id);
                                 return CheckboxListTile(
                                   title: Text(est.nombre),
                                   subtitle: Text(
@@ -896,7 +1084,8 @@ class _FormMateriaState extends State<_FormMateria> {
                                       if (val == true) {
                                         _estudiantesSeleccionados.add(est.id);
                                       } else {
-                                        _estudiantesSeleccionados.remove(est.id);
+                                        _estudiantesSeleccionados
+                                            .remove(est.id);
                                       }
                                     });
                                   },
@@ -905,18 +1094,20 @@ class _FormMateriaState extends State<_FormMateria> {
                             ),
                           ),
                     const SizedBox(height: 24),
- 
+
                     SizedBox(
                       height: 50,
                       child: ElevatedButton.icon(
                         onPressed: _cargando ? null : _guardar,
                         icon: _cargando
                             ? const SizedBox(
-                                width: 18, height: 18,
+                                width: 18,
+                                height: 18,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2, color: Colors.white))
                             : const Icon(Icons.save),
-                        label: Text(_cargando ? 'Guardando...' : 'Crear Materia'),
+                        label:
+                            Text(_cargando ? 'Guardando...' : 'Crear Materia'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF1A237E),
                           foregroundColor: Colors.white,
@@ -931,11 +1122,13 @@ class _FormMateriaState extends State<_FormMateria> {
             ),
     );
   }
- 
+
   Widget _seccion(String titulo) => Text(titulo,
       style: const TextStyle(
-          fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A237E)));
- 
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF1A237E)));
+
   Widget _aviso(String msg) => Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -947,10 +1140,11 @@ class _FormMateriaState extends State<_FormMateria> {
           const Icon(Icons.warning_amber, color: Colors.orange),
           const SizedBox(width: 8),
           Expanded(
-              child: Text(msg, style: const TextStyle(color: Colors.orange))),
+              child:
+                  Text(msg, style: const TextStyle(color: Colors.orange))),
         ]),
       );
- 
+
   Widget _campo(TextEditingController ctrl, String label, IconData icono,
       {String? Function(String?)? validator}) {
     return TextFormField(

@@ -123,6 +123,38 @@ class DatabaseHelper {
     }
   }
 
+  // ── CARRERAS ──────────────────────────────────────────────
+  Future<List<Carrera>> getCarreras() async {
+    final conn = await getConnection();
+    List<Carrera> lista = [];
+    try {
+      var results = await conn.query(
+        'SELECT id, nombre FROM carrera ORDER BY nombre',
+      );
+      for (var row in results) {
+        lista.add(Carrera(id: row[0] as int, nombre: row[1] as String));
+      }
+    } catch (e) {
+      print('Error al obtener carreras: $e');
+    } finally {
+      await conn.close();
+    }
+    return lista;
+  }
+
+  Future<bool> agregarCarrera(String nombre) async {
+    final conn = await getConnection();
+    try {
+      await conn.query('INSERT INTO carrera (nombre) VALUES (?)', [nombre]);
+      return true;
+    } catch (e) {
+      print('Error al agregar carrera: $e');
+      return false;
+    } finally {
+      await conn.close();
+    }
+  }
+
   // ── USUARIOS ──────────────────────────────────────────────
   Future<List<Usuario>> getUsuarios() async {
     final conn = await getConnection();
@@ -190,7 +222,6 @@ class DatabaseHelper {
     return lista;
   }
 
-  // Obtiene el id de la tabla 'docente' a partir del id_usuario
   Future<int?> getIdDocente(int idUsuario) async {
     final conn = await getConnection();
     try {
@@ -235,7 +266,6 @@ class DatabaseHelper {
     return lista;
   }
 
-  // Obtiene el id de la tabla 'estudiante' a partir del id_usuario
   Future<int?> getIdEstudiante(int idUsuario) async {
     final conn = await getConnection();
     try {
@@ -253,7 +283,6 @@ class DatabaseHelper {
     }
   }
 
-  // Obtiene matrícula y carrera del estudiante a partir del id_usuario
   Future<Map<String, String>?> getDatosEstudiante(int idUsuario) async {
     final conn = await getConnection();
     try {
@@ -276,7 +305,6 @@ class DatabaseHelper {
     }
   }
 
-  // Obtiene las materias en las que está inscrito un estudiante
   Future<List<MateriaItem>> getMateriasPorEstudiante(int idEstudiante) async {
     final conn = await getConnection();
     List<MateriaItem> lista = [];
@@ -507,7 +535,6 @@ class Usuario {
   final String nombre;
   final String correo;
   final String rol;
-
   Usuario({
     required this.id,
     required this.nombre,
@@ -520,6 +547,12 @@ class Profesion {
   final int id;
   final String nombre;
   Profesion({required this.id, required this.nombre});
+}
+
+class Carrera {
+  final int id;
+  final String nombre;
+  Carrera({required this.id, required this.nombre});
 }
 
 class DocenteItem {
