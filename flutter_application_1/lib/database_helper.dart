@@ -4,16 +4,16 @@ import 'package:bcrypt/bcrypt.dart';
 
 class DatabaseHelper {
   // ── CONEXIÓN ──────────────────────────────────────────────
-  Future<MySqlConnection> getConnection() async {
-    final settings = ConnectionSettings(
-      host: 'localhost',
-      port: 3306,
-      user: 'root',
-      password: null,
-      db: 'siiu',
-    );
-    return await MySqlConnection.connect(settings);
-  }
+Future<MySqlConnection> getConnection() async {
+  final settings = ConnectionSettings(
+    host: 'localhost',
+    port: 3306,
+    user: 'root',
+    password: null,
+    db: 'siiu',
+  );
+  return await MySqlConnection.connect(settings);
+}
 
   // ── LOGIN ─────────────────────────────────────────────────
   Future<Usuario?> login(String correo, String contrasena) async {
@@ -26,6 +26,9 @@ class DatabaseHelper {
       if (results.isEmpty) return null;
       final row = results.first;
       final String hashGuardado = row[3] as String;
+      print('Hash en BD: $hashGuardado');
+      print('Contraseña ingresada: $contrasena');
+      print('Resultado bcrypt: ${BCrypt.checkpw(contrasena, hashGuardado)}');
       final bool esValida = BCrypt.checkpw(contrasena, hashGuardado);
       if (!esValida) return null;
       return Usuario(
